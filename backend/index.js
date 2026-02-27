@@ -22,6 +22,7 @@ app.get('/api/exercises', (req, res) => {
             return;
         }
         res.json(rows);
+    });
 });
 
 // API สำหรับกรองข้อมูลตาม อุปกรณ์ และ กล้ามเนื้อ
