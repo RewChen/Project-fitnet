@@ -144,7 +144,7 @@ const closeExercise = () => {
           <div class="bg-indigo-600 p-2 rounded-lg">
             <Dumbbell class="text-white w-6 h-6" />
           </div>
-          <h1 class="text-xl font-bold tracking-tight text-slate-800">FitFlex</h1>
+          <h1 class="text-xl font-bold tracking-tight text-slate-800">MuscleFit</h1>
         </div>
         <button class="md:hidden p-2 text-slate-500">
           <Info class="w-6 h-6" />
