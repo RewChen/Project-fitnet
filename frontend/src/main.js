@@ -1,23 +1,5 @@
 import { createApp } from 'vue'
-import { createRouter, createWebHistory } from 'vue-router'
+import './style.css' // ต้องมีบรรทัดนี้
 import App from './App.vue'
-import Home from './views/Home.vue'
-import Exercises from './views/Exercises.vue'
-import Dashboard from './views/Admin/Dashboard.vue'
-import './style.css' 
 
-
-const routes = [
-  { path: '/', component: Home },
-  { path: '/exercises', component: Exercises },
-  { path: '/admin', component: Dashboard }
-]
-
-const router = createRouter({
-  history: createWebHistory(),
-  routes
-})
-
-const app = createApp(App)
-app.use(router)
-app.mount('#app')
+createApp(App).mount('#app')
