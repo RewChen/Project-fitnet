@@ -105,12 +105,10 @@ const exercises = [
   },
 ];
 
-// --- Reactive State ---
 const selectedMuscle = ref('all');
 const selectedDifficulty = ref('ทั้งหมด');
 const activeExercise = ref(null);
 
-// --- Computed Logic ---
 const filteredExercises = computed(() => {
   return exercises.filter(ex => {
     const muscleMatch = selectedMuscle.value === 'all' || ex.muscle === selectedMuscle.value;
@@ -119,7 +117,6 @@ const filteredExercises = computed(() => {
   });
 });
 
-// --- Methods ---
 const selectMuscle = (id) => {
   selectedMuscle.value = id;
   activeExercise.value = null;
@@ -141,7 +138,6 @@ const closeExercise = () => {
 
 <template>
   <div class="min-h-screen bg-slate-50 text-slate-900 font-sans pb-10">
-    <!-- Header -->
     <header class="bg-white border-b sticky top-0 z-40">
       <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -157,15 +153,12 @@ const closeExercise = () => {
     </header>
 
     <main class="max-w-6xl mx-auto px-4 py-8">
-      <!-- Banner -->
       <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-8 mb-10 text-white shadow-xl">
         <h2 class="text-3xl font-bold mb-2">ออกแบบร่างกายของคุณ</h2>
         <p class="opacity-90 max-w-md">ค้นหาท่าออกกำลังกายที่เหมาะสมกับเป้าหมายและระดับความสามารถของคุณ</p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
-        <!-- Sidebar Filters -->
         <aside class="lg:col-span-1 space-y-8">
           <div>
             <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
@@ -180,7 +173,7 @@ const closeExercise = () => {
                   'flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium w-full lg:w-auto',
                   selectedMuscle === group.id 
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 translate-x-1' 
-                    : 'bg-white text-slate-600 hover:bg-slate-100'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-transparent'
                 ]"
               >
                 <component :is="group.icon" class="w-5 h-5" />
@@ -211,13 +204,9 @@ const closeExercise = () => {
           </div>
         </aside>
 
-        <!-- Main Content Area -->
         <section class="lg:col-span-3">
           <div v-if="!activeExercise">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-xl font-bold">ท่าออกกำลังกาย ({{ filteredExercises.length }})</h3>
-            </div>
-            
+            <h3 class="text-xl font-bold mb-6">ท่าออกกำลังกาย ({{ filteredExercises.length }})</h3>
             <div v-if="filteredExercises.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div 
                 v-for="exercise in filteredExercises"
@@ -245,65 +234,46 @@ const closeExercise = () => {
                 </div>
               </div>
             </div>
-            
             <div v-else class="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-slate-200">
               <p class="text-slate-400">ไม่พบท่าออกกำลังกายที่คุณต้องการ ลองเลือกกลุ่มอื่นดูนะ</p>
             </div>
           </div>
 
-          <!-- Exercise Detail View -->
-          <div v-else class="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 animate-fade-in-right">
+          <div v-else class="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 animate-fade-in">
             <div :class="[activeExercise.color, 'h-48 flex flex-col justify-end p-8 text-white relative']">
-              <button 
-                @click="closeExercise"
-                class="absolute top-6 left-6 bg-white/20 hover:bg-white/30 backdrop-blur-md p-2 rounded-full transition-colors"
-              >
+              <button @click="closeExercise" class="absolute top-6 left-6 bg-white/20 hover:bg-white/30 backdrop-blur-md p-2 rounded-full transition-colors">
                 <ChevronLeft class="w-5 h-5" />
               </button>
               <div class="flex items-center gap-3 mb-2">
-                <span class="bg-white/20 backdrop-blur-md text-[10px] font-bold px-2 py-1 rounded-md uppercase">
-                  {{ activeExercise.difficulty }}
-                </span>
+                <span class="bg-white/20 backdrop-blur-md text-[10px] font-bold px-2 py-1 rounded-md uppercase">{{ activeExercise.difficulty }}</span>
                 <span class="bg-white/20 backdrop-blur-md text-[10px] font-bold px-2 py-1 rounded-md uppercase">
                   {{ muscleGroups.find(m => m.id === activeExercise.muscle)?.name }}
                 </span>
               </div>
               <h3 class="text-3xl font-black">{{ activeExercise.name }}</h3>
             </div>
-            
             <div class="p-8">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
                   <h4 class="text-sm font-bold uppercase tracking-widest text-slate-400 mb-3">คำอธิบาย</h4>
-                  <p class="text-slate-700 leading-relaxed mb-6">
-                    {{ activeExercise.description }}
-                  </p>
-                  
+                  <p class="text-slate-700 leading-relaxed mb-6">{{ activeExercise.description }}</p>
                   <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                    <h4 class="font-bold mb-4 flex items-center gap-2">
-                      <Info class="w-4 h-4 text-indigo-600" /> วิธีการฝึก
-                    </h4>
+                    <h4 class="font-bold mb-4 flex items-center gap-2"><Info class="w-4 h-4 text-indigo-600" /> วิธีการฝึก</h4>
                     <ul class="space-y-4">
                       <li v-for="(step, idx) in activeExercise.instructions" :key="idx" class="flex gap-4">
-                        <span class="flex-shrink-0 w-6 h-6 bg-white rounded-full border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">
-                          {{ idx + 1 }}
-                        </span>
+                        <span class="flex-shrink-0 w-6 h-6 bg-white rounded-full border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">{{ idx + 1 }}</span>
                         <span class="text-sm text-slate-600">{{ step }}</span>
                       </li>
                     </ul>
                   </div>
                 </div>
-                
                 <div class="space-y-6">
-                  <div class="aspect-video bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200 overflow-hidden group">
-                    <div class="text-center group-hover:scale-110 transition-transform duration-500">
-                       <div class="bg-white p-4 rounded-full shadow-lg mb-2 mx-auto inline-block">
-                         <Dumbbell class="w-8 h-8 text-indigo-500" />
-                       </div>
-                       <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">[พื้นที่แสดงรูปภาพหรือวิดีโอประกอบ]</p>
+                  <div class="aspect-video bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
+                    <div class="text-center">
+                       <div class="bg-white p-4 rounded-full shadow-lg mb-2 mx-auto inline-block"><Dumbbell class="w-8 h-8 text-indigo-500" /></div>
+                       <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">[พื้นที่แสดงรูปภาพ]</p>
                     </div>
                   </div>
-                  
                   <div class="grid grid-cols-2 gap-4">
                     <div class="bg-indigo-50 p-4 rounded-2xl">
                       <p class="text-[10px] font-bold text-indigo-400 uppercase mb-1">เซตที่แนะนำ</p>
@@ -316,42 +286,18 @@ const closeExercise = () => {
                   </div>
                 </div>
               </div>
-              
               <div class="mt-10 pt-8 border-t border-slate-100 flex justify-end">
-                <button 
-                  @click="closeExercise"
-                  class="px-8 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
-                >
-                  กลับไปหน้ารวม
-                </button>
+                <button @click="closeExercise" class="px-8 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors">กลับไปหน้ารวม</button>
               </div>
             </div>
           </div>
         </section>
       </div>
     </main>
-    
-    <!-- Footer Branding -->
-    <footer class="max-w-6xl mx-auto px-4 mt-12 text-center text-slate-400 text-xs">
-      <p>© 2025 FitFlex Workout Guide - เริ่มต้นการเปลี่ยนแปลงวันนี้</p>
-    </footer>
   </div>
 </template>
 
 <style scoped>
-/* ใช้ scoped style แทนการ import tailwind ในนี้ */
-.animate-fade-in-right {
-  animation: fadeInRight 0.3s ease-out;
-}
-
-@keyframes fadeInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
