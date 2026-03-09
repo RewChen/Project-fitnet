@@ -11,7 +11,7 @@ This project is part of the DevOps and Back-end Development courses. It is a com
 - **Export to Image:** ฟีเจอร์บันทึกตารางการฝึกของทั้งสัปดาห์ออกมาเป็นรูปภาพ
 - **Favorites:** ระบบบันทึกท่าออกกำลังกายที่ชื่นชอบ (ใช้งานผ่าน)
 - **Health Calculator:** เครื่องมือคำนวณสุขภาพองค์รวม (BMI, BMR และ TDEE)
-- **Responsive Design:** รองรับการใช้งานทุกอุปกรณ์ (Mobile, Tablet, Desktop)
+- **Responsive Design:** รองรับการใช้งานทุกอุปกรณ์ (Mobile, Tablet, Desktop) 
 
 ## 🛠 Tech Stack
 **Frontend:**
