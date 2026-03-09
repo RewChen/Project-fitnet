@@ -1,6 +1,4 @@
-
 DROP TABLE IF EXISTS exercises;
-
 
 CREATE TABLE exercises (
     exercise_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8,12 +6,13 @@ CREATE TABLE exercises (
     name_en TEXT,
     difficulty TEXT, 
     muscle_group TEXT, 
+    secondary_muscle TEXT, 
     equipment TEXT, 
     duration TEXT, 
     description TEXT, 
     instructions TEXT, 
     benefits TEXT, 
     media_url TEXT,
-    video_url TEXT, 
+    video_url TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

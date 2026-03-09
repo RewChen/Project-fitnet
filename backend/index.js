@@ -28,8 +28,8 @@ app.get('/api/exercises/filter', (req, res) => {
     let params = [];
 
     if (equipment && equipment !== 'ทั้งหมด') {
-        sql += ' AND equipment = ?';
-        params.push(equipment);
+        sql += ' AND equipment LIKE ?';
+        params.push('%' + equipment + '%');
     }
     if (muscle && muscle !== 'ทั้งหมด') {
         sql += ' AND muscle_group = ?';
@@ -53,22 +53,24 @@ app.get('/api/exercises/:id', (req, res) => {
     });
 });
 
-//  4. เพิ่มท่าฝึกใหม่ (Protected API - ต้องมีรหัสผ่าน) 
-// นี่คือส่วนที่จะใช้ Postman ยิงเข้ามาครับ และตอบโจทย์ของอาจารย์ด้วย
+// 4. เพิ่มท่าฝึกใหม่ (Protected API - ต้องมีรหัสผ่าน) 
 app.post('/api/exercises', (req, res) => {
     // เช็ครหัสผ่านจาก Header
     const authHeader = req.headers['authorization'];
     
-    // ตั้งรหัสผ่านแอดมินไว้ที่ 'admin1234' (เปลี่ยนได้ตามใจชอบ)
+    // ตั้งรหัสผ่านแอดมินไว้ที่ 'admin1234'
     if (authHeader !== 'Bearer admin1234') {
         return res.status(401).json({ error: 'Unauthorized: รหัสผ่านแอดมินไม่ถูกต้อง' });
     }
 
-    const { name_th, name_en, difficulty, muscle_group, equipment, duration, description, instructions, benefits, media_url } = req.body;
+    // 🟢 อัปเดต: รับค่า secondary_muscle และ video_url เพิ่มเติม
+    const { name_th, name_en, difficulty, muscle_group, secondary_muscle, equipment, duration, description, instructions, benefits, media_url, video_url } = req.body;
 
-    const sql = `INSERT INTO exercises (name_th, name_en, difficulty, muscle_group, equipment, duration, description, instructions, benefits, media_url) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    const params = [name_th, name_en, difficulty, muscle_group, equipment, duration, description, instructions, benefits, media_url];
+    // 🟢 อัปเดต: เพิ่มคอลัมน์ลงในคำสั่ง SQL
+    const sql = `INSERT INTO exercises (name_th, name_en, difficulty, muscle_group, secondary_muscle, equipment, duration, description, instructions, benefits, media_url, video_url) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    const params = [name_th, name_en, difficulty, muscle_group, secondary_muscle, equipment, duration, description, instructions, benefits, media_url, video_url];
 
     db.run(sql, params, function(err) {
         if (err) return res.status(500).json({ error: err.message });

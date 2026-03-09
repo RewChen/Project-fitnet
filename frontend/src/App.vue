@@ -13,8 +13,9 @@ import {
 const currentPage = ref('guide');
 const toast = ref({ show: false, message: '', type: 'success' });
 const viewingExercise = ref(null);
-const showHelpBanner = ref(true);
+const showHelpBanner = ref(true); 
 const isLoading = ref(true);
+const showDaySelector = ref(false); 
 
 const favorites = ref([]);
 const showFavoritesOnly = ref(false);
@@ -22,8 +23,9 @@ const showFavoritesOnly = ref(false);
 const searchQuery = ref('');
 const selectedMuscle = ref('all');
 const selectedDifficulty = ref('ทั้งหมด');
+const selectedEquipment = ref('ทั้งหมด'); 
 
-// --- 2. Workout Plan State (ตารางฝึก) ---
+// --- 2. Workout Plan State ---
 const daysOfWeek = [
     { id: 'mon', name: 'จันทร์', color: 'bg-yellow-100 text-yellow-700 border-yellow-200', dot: 'bg-yellow-500' },
     { id: 'tue', name: 'อังคาร', color: 'bg-pink-100 text-pink-700 border-pink-200', dot: 'bg-pink-500' },
@@ -36,9 +38,9 @@ const daysOfWeek = [
 const selectedDay = ref('mon');
 const weeklyPlan = ref({ mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] });
 
-// State สำหรับ Export ตารางทั้งสัปดาห์
 const weeklyPlanRef = ref(null); 
 const isExporting = ref(false);
+const showClearConfirmModal = ref(false);
 
 // --- 3. Health Calculator State ---
 const calcWeight = ref('');
@@ -57,9 +59,11 @@ const muscleGroups = [
     { id: 'all', name: 'ทั้งหมด', icon: Layout },
     { id: 'chest', name: 'หน้าอก', icon: Layers },
     { id: 'back', name: 'หลัง', icon: Accessibility },
+    { id: 'shoulders', name: 'หัวไหล่', icon: Target }, 
     { id: 'arms', name: 'แขน', icon: Armchair },
     { id: 'legs', name: 'ขา', icon: User },
     { id: 'abs', name: 'หน้าท้อง', icon: Wind },
+    { id: 'fullbody', name: 'ทั่วร่าง', icon: Activity },
 ];
 
 const exercises = ref([]);
@@ -67,7 +71,7 @@ const exercises = ref([]);
 const fetchExercises = async () => {
     isLoading.value = true;
     try {
-        const response = await fetch('http://localhost:3000/api/exercises');
+        const response = await fetch('http://localhost:3000/api/exercises', { cache: 'no-store' });
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         
@@ -75,10 +79,11 @@ const fetchExercises = async () => {
             let mappedMuscle = 'all';
             if (ex.muscle_group === 'หน้าอก') mappedMuscle = 'chest';
             else if (ex.muscle_group === 'หลัง') mappedMuscle = 'back';
+            else if (ex.muscle_group === 'หัวไหล่') mappedMuscle = 'shoulders';
             else if (ex.muscle_group === 'แขน') mappedMuscle = 'arms';
             else if (ex.muscle_group === 'ขา') mappedMuscle = 'legs';
             else if (ex.muscle_group === 'หน้าท้อง') mappedMuscle = 'abs';
-            else if (ex.muscle_group === 'ทั่วร่าง') mappedMuscle = 'abs';
+            else if (ex.muscle_group === 'ทั่วร่าง') mappedMuscle = 'fullbody';
 
             let mappedDiff = ex.difficulty;
             if (ex.difficulty === 'Beginner') mappedDiff = 'เริ่มต้น';
@@ -87,8 +92,7 @@ const fetchExercises = async () => {
 
             let parsedInstructions = [];
             if (ex.instructions) {
-                // ลบตัวเลขนำหน้าออก (เช่น "1. ")
-                parsedInstructions = ex.instructions.split(' | ').map(step => step.replace(/^\d+\.\s*/, '').trim());
+                parsedInstructions = ex.instructions.split('|').map(step => step.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
             }
 
             return {
@@ -101,6 +105,7 @@ const fetchExercises = async () => {
                 equipment: ex.equipment || 'ไม่ระบุ',
                 imageUrl: ex.media_url,
                 videoUrl: ex.video_url,
+                secondaryMuscle: ex.secondary_muscle,
                 color: 'bg-blue-500'
             };
         });
@@ -113,13 +118,31 @@ const fetchExercises = async () => {
 };
 
 onMounted(() => {
-    fetchExercises();
-    
     const savedFavs = localStorage.getItem('musclefit_favs');
     if (savedFavs) favorites.value = JSON.parse(savedFavs);
 
     const savedPlan = localStorage.getItem('musclefit_plan');
     if (savedPlan) weeklyPlan.value = JSON.parse(savedPlan);
+
+    fetchExercises().then(() => {
+        let planChanged = false;
+        for (const day in weeklyPlan.value) {
+            const validIds = weeklyPlan.value[day].filter(id => exercises.value.some(ex => ex.id === id));
+            if (validIds.length !== weeklyPlan.value[day].length) {
+                weeklyPlan.value[day] = validIds; 
+                planChanged = true;
+            }
+        }
+        if (planChanged) {
+            localStorage.setItem('musclefit_plan', JSON.stringify(weeklyPlan.value));
+        }
+
+        const validFavs = favorites.value.filter(id => exercises.value.some(ex => ex.id === id));
+        if (validFavs.length !== favorites.value.length) {
+            favorites.value = validFavs;
+            localStorage.setItem('musclefit_favs', JSON.stringify(favorites.value));
+        }
+    });
 });
 
 // --- 4. Computed Properties ---
@@ -127,6 +150,7 @@ const filteredExercises = computed(() => {
     return exercises.value.filter(ex => {
         const muscleMatch = selectedMuscle.value === 'all' || ex.muscle === selectedMuscle.value;
         const diffMatch = selectedDifficulty.value === 'ทั้งหมด' || ex.difficulty === selectedDifficulty.value;
+        const equipMatch = selectedEquipment.value === 'ทั้งหมด' || ex.equipment.includes(selectedEquipment.value);
         const favMatch = !showFavoritesOnly.value || favorites.value.includes(ex.id);
         
         const searchLower = searchQuery.value.toLowerCase().trim();
@@ -134,7 +158,7 @@ const filteredExercises = computed(() => {
                           ex.name.toLowerCase().includes(searchLower) || 
                           ex.description.toLowerCase().includes(searchLower);
 
-        return muscleMatch && diffMatch && favMatch && textMatch;
+        return muscleMatch && diffMatch && equipMatch && favMatch && textMatch;
     });
 });
 
@@ -143,7 +167,6 @@ const plannedExercisesForSelectedDay = computed(() => {
     return ids.map(id => exercises.value.find(ex => ex.id === id)).filter(Boolean);
 });
 
-// เช็คว่าทั้งสัปดาห์ว่างหรือไม่
 const isWeeklyPlanEmpty = computed(() => {
     return Object.values(weeklyPlan.value).every(dayPlan => dayPlan.length === 0);
 });
@@ -185,7 +208,13 @@ const togglePlan = (dayId, exId) => {
     localStorage.setItem('musclefit_plan', JSON.stringify(weeklyPlan.value));
 };
 
-// 🟢 ฟังก์ชัน Export "ตารางทั้งสัปดาห์" เป็นรูปภาพ (แบบใหม่ ชัวร์ 100%)
+const confirmClearWeeklyPlan = () => {
+    weeklyPlan.value = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+    localStorage.setItem('musclefit_plan', JSON.stringify(weeklyPlan.value));
+    showClearConfirmModal.value = false;
+    showToast('ล้างตารางฝึกทั้งหมดเรียบร้อยแล้ว', 'reset');
+};
+
 const exportWeeklyPlanToImage = async () => {
     if (!weeklyPlanRef.value) return;
     
@@ -193,16 +222,22 @@ const exportWeeklyPlanToImage = async () => {
     showToast('กำลังประมวลผลรูปภาพ กรุณารอสักครู่...', 'success');
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 300)); 
+        const targetEl = weeklyPlanRef.value;
+        targetEl.classList.remove('left-[-9999px]');
+        targetEl.classList.add('left-0', 'z-50');
 
-        const canvas = await html2canvas(weeklyPlanRef.value, {
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+
+        const canvas = await html2canvas(targetEl, {
             scale: 2, 
             backgroundColor: '#ffffff',
             useCORS: true, 
             logging: false,
-            // ป้องกันตัวอักษรไทยแหว่ง
             windowWidth: 800
         });
+
+        targetEl.classList.add('left-[-9999px]');
+        targetEl.classList.remove('left-0', 'z-50');
 
         const image = canvas.toDataURL("image/png");
         const link = document.createElement('a');
@@ -210,10 +245,12 @@ const exportWeeklyPlanToImage = async () => {
         link.download = `MuscleFit_WeeklyPlan.png`;
         link.click();
 
-        showToast('ดาวน์โหลดตารางรายสัปดาห์สำเร็จ!', 'success');
+        showToast('ดาวน์โหลดตารางเรียบร้อยแล้ว!', 'success');
     } catch (error) {
         console.error("Export error:", error);
         showToast('เกิดข้อผิดพลาดในการสร้างรูปภาพ', 'error');
+        weeklyPlanRef.value.classList.add('left-[-9999px]');
+        weeklyPlanRef.value.classList.remove('left-0', 'z-50');
     } finally {
         isExporting.value = false;
     }
@@ -300,14 +337,40 @@ const resetCalculator = () => {
             </transition>
 
             <transition name="fade">
-                <div v-if="viewingExercise" class="fixed inset-0 z-[60] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8" @click.self="viewingExercise = null">
+                <div v-if="showClearConfirmModal" class="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" @click.self="showClearConfirmModal = false">
+                    <transition name="modal" appear>
+                        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center text-center relative border border-slate-100">
+                            <div class="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-inner border border-rose-100">
+                                <AlertTriangle class="w-10 h-10" />
+                            </div>
+                            <h2 class="text-2xl font-black text-slate-800 mb-3 tracking-tight">ยืนยันการล้างตาราง?</h2>
+                            <p class="text-slate-500 mb-8 leading-relaxed">
+                                คุณแน่ใจหรือไม่ว่าต้องการล้างตารางฝึกทั้งหมดของทุกวัน? <br>
+                                <span class="text-rose-500 font-bold">ข้อมูลที่จัดไว้จะหายไปทั้งหมดและไม่สามารถย้อนกลับได้</span>
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-3 w-full">
+                                <button @click="showClearConfirmModal = false" class="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors outline-none border border-slate-200">
+                                    ยกเลิก
+                                </button>
+                                <button @click="confirmClearWeeklyPlan" class="flex-1 px-6 py-4 rounded-2xl font-bold text-white bg-rose-500 hover:bg-rose-600 shadow-lg shadow-rose-200/50 transition-all outline-none">
+                                    ยืนยันการลบ
+                                </button>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+            </transition>
+
+            <transition name="fade">
+                <div v-if="viewingExercise" class="fixed inset-0 z-[60] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8" @click.self="viewingExercise = null; showDaySelector = false">
                     <transition name="modal" appear>
                         <div class="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col relative">
-                            <button @click="viewingExercise = null" class="absolute top-6 right-6 z-20 bg-black/30 hover:bg-black/50 backdrop-blur-md p-2 rounded-full transition-colors shadow-lg">
+                            <button @click="viewingExercise = null; showDaySelector = false" class="absolute top-6 right-6 z-20 bg-black/30 hover:bg-black/50 backdrop-blur-md p-2 rounded-full transition-colors shadow-lg">
                                 <X class="w-6 h-6 text-white" />
                             </button>
 
                             <div class="flex flex-col md:flex-row h-full max-h-[90vh] overflow-hidden">
+                                
                                 <div :class="[!viewingExercise.imageUrl ? viewingExercise.color : 'bg-slate-900', 'md:w-2/5 p-8 flex flex-col justify-end text-white relative min-h-[250px] md:min-h-full overflow-hidden shrink-0']">
                                     <template v-if="viewingExercise.imageUrl">
                                         <img :src="viewingExercise.imageUrl" alt="Exercise Image" class="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-700 hover:scale-105" crossorigin="anonymous" />
@@ -323,32 +386,41 @@ const resetCalculator = () => {
                                     </div>
                                     
                                     <div class="relative z-10">
-                                        <h2 class="text-3xl md:text-4xl font-black mb-2 leading-tight drop-shadow-md">{{ viewingExercise.name }}</h2>
-                                        <p class="text-white/90 font-medium drop-shadow-sm flex items-center gap-2">
-                                            <component :is="muscleGroups.find(m => m.id === viewingExercise.muscle)?.icon || Dumbbell" class="w-4 h-4 shrink-0" />
-                                            {{ muscleGroups.find(m => m.id === viewingExercise.muscle)?.name || viewingExercise.muscle }}
-                                        </p>
+                                        <h2 class="text-3xl md:text-4xl font-black mb-4 leading-tight drop-shadow-md">{{ viewingExercise.name }}</h2>
+                                        
+                                        <div class="flex flex-col gap-2">
+                                            <p class="text-white font-bold drop-shadow-sm flex items-center gap-2">
+                                                <Target class="w-5 h-5 shrink-0 text-blue-400" />
+                                                กล้ามเนื้อหลัก : {{ muscleGroups.find(m => m.id === viewingExercise.muscle)?.name || viewingExercise.muscle }}
+                                            </p>
+                                            <p v-if="viewingExercise.secondaryMuscle" class="text-slate-200 text-sm font-medium drop-shadow-sm flex items-center gap-2">
+                                                <Layers class="w-4 h-4 shrink-0 opacity-70" />
+                                                กล้ามเนื้อส่วนร่วม : {{ viewingExercise.secondaryMuscle }}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                        <div class="flex-1 p-8 md:p-10 overflow-y-auto bg-white flex flex-col">
-                            <div class="mb-8">
-                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3">คำอธิบาย</h4>
-                                <p class="text-slate-600 leading-relaxed text-lg">{{ viewingExercise.description || 'ไม่มีคำอธิบายเพิ่มเติม' }}</p>
-                            </div>
 
-                            <div v-if="viewingExercise.videoUrl" class="mb-8 rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-slate-50">
-                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] m-4 mb-3">วิดีโอสาธิต</h4>
-                                <iframe 
-                                    class="w-full aspect-video" 
-                                    :src="viewingExercise.videoUrl" 
-                                    title="Workout Video" 
-                                    frameborder="0" 
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                    allowfullscreen>
-                                </iframe>
-                            </div>
-                            <div class="mb-8">
-                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">วิธีการฝึกอย่างละเอียด</h4>
+                                <div class="flex-1 p-8 md:p-10 overflow-y-auto bg-white flex flex-col relative">
+                                    
+                                    <div class="mb-8">
+                                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3">คำอธิบาย</h4>
+                                        <p class="text-slate-600 leading-relaxed text-lg">{{ viewingExercise.description || 'ไม่มีคำอธิบายเพิ่มเติม' }}</p>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-4 mb-8">
+                                        <div class="bg-slate-50 p-4 md:p-5 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Target class="w-3 h-3 shrink-0"/> อุปกรณ์</p>
+                                            <p class="text-slate-800 font-bold text-base">{{ viewingExercise.equipment }}</p>
+                                        </div>
+                                        <div class="bg-slate-50 p-4 md:p-5 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Zap class="w-3 h-3 shrink-0"/> เซต/ครั้งที่แนะนำ</p>
+                                            <p class="text-slate-800 font-bold text-base">3-4 เซต | 10-15 ครั้ง</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-8">
+                                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">วิธีการฝึก</h4>
                                         <div v-if="viewingExercise.instructions.length" class="space-y-4">
                                             <div v-for="(step, idx) in viewingExercise.instructions" :key="idx" class="flex gap-4 items-start">
                                                 <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold text-sm border border-blue-100">
@@ -360,32 +432,57 @@ const resetCalculator = () => {
                                         <p v-else class="text-slate-400 italic">ไม่มีข้อมูลวิธีการฝึก</p>
                                     </div>
 
-                                    <div class="grid grid-cols-2 gap-4 mt-auto pt-6 border-t border-slate-100 mb-6">
-                                        <div class="bg-slate-50 p-4 md:p-6 rounded-3xl border border-slate-100">
-                                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Target class="w-3 h-3 shrink-0"/> อุปกรณ์</p>
-                                            <p class="text-slate-800 font-bold">{{ viewingExercise.equipment }}</p>
-                                        </div>
-                                        <div class="bg-slate-50 p-4 md:p-6 rounded-3xl border border-slate-100">
-                                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Zap class="w-3 h-3 shrink-0"/> เซต/ครั้งที่แนะนำ</p>
-                                            <p class="text-slate-800 font-bold">3-4 เซต | 10-15 ครั้ง</p>
+                                    <div v-if="viewingExercise.videoUrl" class="mb-8">
+                                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">วิดีโอสาธิตการฝึก</h4>
+                                        <div class="rounded-3xl overflow-hidden shadow-sm border border-slate-100 bg-slate-50">
+                                            <iframe 
+                                                class="w-full aspect-video" 
+                                                :src="viewingExercise.videoUrl" 
+                                                title="Workout Video" 
+                                                frameborder="0" 
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                allowfullscreen>
+                                            </iframe>
                                         </div>
                                     </div>
 
-                                    <div class="border-t border-slate-100 pt-6">
-                                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                            <Calendar class="w-4 h-4 shrink-0"/> เพิ่มท่านี้ลงตารางฝึกของคุณ
-                                        </h4>
-                                        <div class="flex flex-wrap gap-2">
-                                            <button v-for="day in daysOfWeek" :key="day.id"
-                                                @click="togglePlan(day.id, viewingExercise.id)"
-                                                :class="[
-                                                    'px-4 py-2 rounded-xl text-xs font-bold transition-all border shadow-sm outline-none',
-                                                    weeklyPlan[day.id].includes(viewingExercise.id) ? day.color : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                                                ]">
-                                                {{ day.name }}
-                                            </button>
-                                        </div>
+                                    <div class="mt-auto"></div>
+
+                                    <div class="pt-6 border-t border-slate-100 mt-4 relative">
+                                        <transition name="fade">
+                                            <div v-if="showDaySelector" class="bg-slate-50 border border-slate-200 rounded-[1.5rem] p-5 mb-4 shadow-inner">
+                                                <div class="flex items-center justify-between mb-4">
+                                                    <h5 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                                                        <Calendar class="w-4 h-4 text-blue-600 shrink-0" /> เลือกวันที่ต้องการฝึก
+                                                    </h5>
+                                                    <button @click="showDaySelector = false" class="text-slate-400 hover:text-rose-500 bg-white rounded-full p-1 border border-slate-200 shadow-sm transition-colors">
+                                                        <X class="w-4 h-4"/>
+                                                    </button>
+                                                </div>
+                                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                    <button v-for="day in daysOfWeek" :key="day.id"
+                                                        @click="togglePlan(day.id, viewingExercise.id)"
+                                                        :class="[
+                                                            'px-2 py-3 rounded-xl text-xs font-bold transition-all border outline-none flex flex-col items-center justify-center gap-1 hover:-translate-y-0.5',
+                                                            weeklyPlan[day.id].includes(viewingExercise.id) ? day.color + ' shadow-sm border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300 shadow-sm'
+                                                        ]">
+                                                        <span>{{ day.name }}</span>
+                                                        <span v-if="weeklyPlan[day.id].includes(viewingExercise.id)" class="bg-white/50 px-2 py-0.5 rounded-md text-[9px] mt-0.5 flex items-center"><CheckCircle2 class="w-3 h-3 mr-0.5 shrink-0" /> มีแล้ว</span>
+                                                        <span v-else class="text-[9px] text-slate-400 mt-0.5 flex items-center">+ เพิ่มลงวัน</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </transition>
+
+                                        <button @click="showDaySelector = !showDaySelector" 
+                                            :class="['w-full font-bold py-4 rounded-[1.25rem] transition-colors flex items-center justify-center gap-2 shadow-lg outline-none border',
+                                                showDaySelector ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200 shadow-none' : 'bg-slate-900 hover:bg-blue-600 text-white border-transparent'
+                                            ]">
+                                            <Calendar class="w-5 h-5 shrink-0" /> 
+                                            {{ showDaySelector ? 'ซ่อนหน้าต่างจัดตาราง' : 'เพิ่มในตารางฝึก' }}
+                                        </button>
                                     </div>
+
                                 </div>
                             </div>
                         </div>
@@ -397,16 +494,16 @@ const resetCalculator = () => {
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
                     <div>
                         <h1 class="text-3xl font-black text-slate-800 tracking-tight">คู่มือการออกกำลังกาย</h1>
-                        <p class="text-slate-500 font-medium mt-1">MuscleFit - เลือกส่วนที่ต้องการฝึกเพื่อดูรายละเอียด</p>
+                        <p class="text-slate-500 font-medium mt-1">MuscleFit - เลือกส่วนและอุปกรณ์ที่ต้องการฝึก</p>
                     </div>
-                    <div class="flex gap-2 flex-wrap">
+                    <div class="flex gap-2 flex-wrap items-center">
                         <button @click="showFavoritesOnly = !showFavoritesOnly" 
-                            :class="['px-5 py-2.5 rounded-xl text-xs font-bold transition-all outline-none flex items-center gap-2 border', showFavoritesOnly ? 'bg-rose-50 text-rose-600 border-rose-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">
+                            :class="['px-5 py-2.5 rounded-xl text-xs font-bold transition-all outline-none flex items-center gap-2 border h-[42px]', showFavoritesOnly ? 'bg-rose-50 text-rose-600 border-rose-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">
                             <Heart :class="['w-4 h-4 shrink-0', showFavoritesOnly ? 'fill-rose-500' : '']" /> ท่าโปรด
                         </button>
-                        <div class="flex gap-1 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex gap-1 bg-white p-1 rounded-xl shadow-sm border border-slate-200 h-[42px]">
                             <button v-for="level in ['ทั้งหมด', 'เริ่มต้น', 'ปานกลาง', 'ขั้นสูง']" :key="level" @click="selectedDifficulty = level"
-                                :class="['px-5 py-2.5 rounded-xl text-xs font-bold transition-all outline-none whitespace-nowrap', selectedDifficulty === level ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50']">
+                                :class="['px-4 py-1.5 rounded-lg text-xs font-bold transition-all outline-none whitespace-nowrap', selectedDifficulty === level ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50']">
                                 {{ level }}
                             </button>
                         </div>
@@ -414,27 +511,42 @@ const resetCalculator = () => {
                 </div>
 
                 <transition name="fade">
-                    <div v-if="showHelpBanner" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/50 rounded-[2rem] p-6 mb-8 relative flex flex-col md:flex-row gap-6 items-start md:items-center shadow-sm">
-                        <button @click="showHelpBanner = false" class="absolute top-6 right-6 text-slate-400 hover:text-slate-700 transition-colors bg-white p-2 rounded-full shadow-sm">
-                            <X class="w-4 h-4 shrink-0" />
+                    <div v-if="showHelpBanner" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-6 md:p-8 mb-8 text-white relative overflow-hidden shadow-lg shadow-blue-500/20">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+                        
+                        <button @click="showHelpBanner = false" class="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-2 rounded-full backdrop-blur-sm transition-colors">
+                            <X class="w-5 h-5 text-white" />
                         </button>
-                        <div class="bg-blue-600 p-4 rounded-[1.25rem] text-white shrink-0 shadow-lg shadow-blue-200/50">
-                            <Lightbulb class="w-8 h-8 shrink-0" />
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-slate-800 mb-3 tracking-tight">เริ่มต้นใช้งานระบบอย่างไร?</h3>
-                            <ul class="text-sm text-slate-600 space-y-2.5 font-medium">
-                                <li class="flex items-center gap-3"><CheckCircle2 class="w-4 h-4 text-blue-500 shrink-0" /> <span>เลือก <strong>ระดับความยาก</strong> และ <strong>ส่วนกล้ามเนื้อ</strong> ด้านล่างเพื่อกรองข้อมูล</span></li>
-                                <li class="flex items-center gap-3"><CheckCircle2 class="w-4 h-4 text-blue-500 shrink-0" /> <span>คลิกที่การ์ดท่าออกกำลังกายเพื่อดู <strong>วิธีการฝึกอย่างละเอียด</strong> และเพิ่มลง <strong>ตารางฝึก</strong></span></li>
-                            </ul>
+                        
+                        <div class="flex items-start gap-4 relative z-10">
+                            <div class="bg-white/20 p-3 rounded-2xl backdrop-blur-sm shrink-0">
+                                <Lightbulb class="w-8 h-8 text-white" />
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black mb-2">เริ่มต้นใช้งาน MuscleFit</h3>
+                                <p class="text-blue-100 font-medium leading-relaxed">
+                                    เลือกส่วนกล้ามเนื้อและอุปกรณ์ที่คุณต้องการฝึกจากเมนูด้านล่าง กดที่การ์ดเพื่อดูวิดีโอสาธิตและวิธีการฝึกอย่างละเอียด หรือกดที่ไอคอน <Heart class="w-4 h-4 inline-block mx-1 fill-rose-500 text-rose-500" /> เพื่อบันทึกท่าโปรดของคุณ!
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </transition>
 
-                <div class="flex gap-3 overflow-x-auto pb-6 no-scrollbar snap-x">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-2">1. เลือกส่วนกล้ามเนื้อ</h3>
+                <div class="flex gap-3 overflow-x-auto pb-4 no-scrollbar snap-x">
                     <button v-for="group in muscleGroups" :key="group.id" @click="selectedMuscle = group.id"
                         :class="['flex items-center gap-3 px-6 py-4 rounded-[1.25rem] transition-all text-sm font-bold shrink-0 snap-start border outline-none', selectedMuscle === group.id ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200 -translate-y-1' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50']">
                         <component :is="group.icon" class="w-5 h-5 shrink-0" /> {{ group.name }}
+                    </button>
+                </div>
+
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-2 mt-4">2. เลือกอุปกรณ์</h3>
+                <div class="flex gap-3 overflow-x-auto pb-8 no-scrollbar snap-x border-b border-slate-100 mb-6">
+                    <button v-for="eq in ['ทั้งหมด', 'น้ำหนักตัว', 'ดัมเบล', 'บาร์เบล', 'เครื่องเล่น']" :key="eq" 
+                        @click="selectedEquipment = eq"
+                        :class="['px-6 py-3 rounded-[1.25rem] transition-all text-sm font-bold shrink-0 snap-start border outline-none', 
+                            selectedEquipment === eq ? 'bg-slate-800 text-white border-slate-800 shadow-lg shadow-slate-200 -translate-y-1' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50']">
+                        {{ eq === 'ทั้งหมด' ? 'อุปกรณ์ทั้งหมด' : eq }}
                     </button>
                 </div>
 
@@ -477,8 +589,8 @@ const resetCalculator = () => {
                     <div class="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                         <SearchX class="w-10 h-10 text-slate-400 shrink-0" />
                     </div>
-                    <p class="text-slate-500 font-bold text-lg">{{ showFavoritesOnly ? 'ยังไม่มีท่าโปรดในหมวดหมู่นี้' : 'ไม่พบท่าออกกำลังกายในหมวดหมู่นี้' }}</p>
-                    <button @click="selectedMuscle = 'all'; selectedDifficulty = 'ทั้งหมด'; searchQuery = ''; showFavoritesOnly = false" class="mt-4 text-blue-600 font-bold hover:underline">แสดงท่าทั้งหมด</button>
+                    <p class="text-slate-500 font-bold text-lg">ไม่พบท่าออกกำลังกายในหมวดหมู่นี้</p>
+                    <button @click="selectedMuscle = 'all'; selectedDifficulty = 'ทั้งหมด'; selectedEquipment = 'ทั้งหมด'; showFavoritesOnly = false" class="mt-4 text-blue-600 font-bold hover:underline">ล้างตัวกรองทั้งหมด</button>
                 </div>
             </div>
 
@@ -492,16 +604,28 @@ const resetCalculator = () => {
                         <p class="text-slate-500 font-medium">จัดการตารางออกกำลังกายของคุณในแต่ละวัน</p>
                     </div>
                     
-                    <button 
-                        @click="exportWeeklyPlanToImage" 
-                        :disabled="isExporting || isWeeklyPlanEmpty"
-                        :class="['px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm shrink-0', 
-                            (isExporting || isWeeklyPlanEmpty) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-800 text-white hover:bg-slate-900 hover:shadow-md'
-                        ]">
-                        <Loader2 v-if="isExporting" class="w-5 h-5 animate-spin shrink-0" />
-                        <Download v-else class="w-5 h-5 shrink-0" />
-                        {{ isExporting ? 'กำลังสร้างรูปภาพ...' : 'บันทึกตารางออกกำลังกาย' }}
-                    </button>
+                    <div class="flex gap-3">
+                        <button 
+                            @click="showClearConfirmModal = true" 
+                            :disabled="isWeeklyPlanEmpty"
+                            :class="['px-4 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm shrink-0 border', 
+                                isWeeklyPlanEmpty ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed' : 'bg-white text-rose-500 border-rose-200 hover:bg-rose-50 hover:border-rose-300'
+                            ]">
+                            <Trash2 class="w-5 h-5 shrink-0" />
+                            <span class="hidden sm:inline">ล้างตาราง</span>
+                        </button>
+
+                        <button 
+                            @click="exportWeeklyPlanToImage" 
+                            :disabled="isExporting || isWeeklyPlanEmpty"
+                            :class="['px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm shrink-0', 
+                                (isExporting || isWeeklyPlanEmpty) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-800 text-white hover:bg-slate-900 hover:shadow-md'
+                            ]">
+                            <Loader2 v-if="isExporting" class="w-5 h-5 animate-spin shrink-0" />
+                            <Download v-else class="w-5 h-5 shrink-0" />
+                            <span class="hidden sm:inline">{{ isExporting ? 'กำลังสร้างรูปภาพ...' : 'บันทึกตารางออกกำลังกาย' }}</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex gap-2 overflow-x-auto pb-4 mb-6 no-scrollbar snap-x">
@@ -567,7 +691,7 @@ const resetCalculator = () => {
             <div v-if="currentPage === 'admin'" class="p-6 md:p-8 max-w-4xl mx-auto pb-20">
                 <div class="mb-8">
                     <h1 class="text-3xl font-black text-slate-800">ค้นหาท่าออกกำลังกาย</h1>
-                    <p class="text-slate-500 mt-2 font-medium">ค้นหาท่าฝึกที่คุณต้องการจากฐานข้อมูลของ MuscleFit</p>
+                    <p class="text-slate-500 mt-2 font-medium">ค้นหาตามระดับความยาก อุปกรณ์ และกล้ามเนื้อพร้อมกัน</p>
                 </div>
 
                 <div class="space-y-6">
@@ -582,19 +706,27 @@ const resetCalculator = () => {
                             />
                         </div>
 
-                        <div class="flex flex-col md:flex-row gap-4">
-                            <div class="flex-1 space-y-2">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="space-y-2">
                                 <label class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">ระดับความยาก</label>
-                                <select v-model="selectedDifficulty" class="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 transition-all outline-none appearance-none font-medium text-slate-600 cursor-pointer">
+                                <select v-model="selectedDifficulty" class="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 transition-all outline-none appearance-none font-medium text-slate-600 cursor-pointer">
                                     <option value="ทั้งหมด">ทั้งหมด (All Levels)</option>
                                     <option value="เริ่มต้น">เริ่มต้น (Beginner)</option>
                                     <option value="ปานกลาง">ปานกลาง (Intermediate)</option>
                                     <option value="ขั้นสูง">ขั้นสูง (Advanced)</option>
                                 </select>
                             </div>
-                            <div class="flex-1 space-y-2">
+                            <div class="space-y-2">
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">อุปกรณ์</label>
+                                <select v-model="selectedEquipment" class="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 transition-all outline-none appearance-none font-medium text-slate-600 cursor-pointer">
+                                    <option v-for="eq in ['ทั้งหมด', 'น้ำหนักตัว', 'ดัมเบล', 'บาร์เบล', 'เครื่องเล่น']" :key="eq" :value="eq">
+                                        {{ eq === 'ทั้งหมด' ? 'อุปกรณ์ทั้งหมด' : eq }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
                                 <label class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">กล้ามเนื้อ</label>
-                                <select v-model="selectedMuscle" class="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 transition-all outline-none appearance-none font-medium text-slate-600 cursor-pointer">
+                                <select v-model="selectedMuscle" class="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 transition-all outline-none appearance-none font-medium text-slate-600 cursor-pointer">
                                     <option value="all">ทั้งหมด (All Muscles)</option>
                                     <option v-for="m in muscleGroups.filter(g => g.id !== 'all')" :key="m.id" :value="m.id">
                                         {{ m.name }}
@@ -607,7 +739,9 @@ const resetCalculator = () => {
                     <div>
                         <div class="flex items-center justify-between mb-4 px-2">
                             <h3 class="text-lg font-bold text-slate-700">ผลการค้นหา ({{ filteredExercises.length }})</h3>
-                            <button v-if="searchQuery || selectedDifficulty !== 'ทั้งหมด' || selectedMuscle !== 'all'" @click="searchQuery = ''; selectedMuscle = 'all'; selectedDifficulty = 'ทั้งหมด'" class="text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors">
+                            <button v-if="searchQuery || selectedDifficulty !== 'ทั้งหมด' || selectedMuscle !== 'all' || selectedEquipment !== 'ทั้งหมด'" 
+                                @click="searchQuery = ''; selectedMuscle = 'all'; selectedDifficulty = 'ทั้งหมด'; selectedEquipment = 'ทั้งหมด'" 
+                                class="text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors">
                                 ล้างตัวกรอง
                             </button>
                         </div>
@@ -817,6 +951,27 @@ const resetCalculator = () => {
                                 <p class="text-sm text-rose-700 leading-relaxed">ข้อมูลทั้งหมดบนแพลตฟอร์มเป็นเพียงแนวทางทั่วไปเท่านั้น หากคุณมีโรคประจำตัวหรือเคยได้รับบาดเจ็บ โปรดปรึกษาแพทย์หรือนักกายภาพบำบัดก่อนเริ่มต้นโปรแกรมการออกกำลังกายทุกครั้ง</p>
                             </div>
                         </div>
+
+                        <div class="mt-8 border-t border-slate-200 pt-8 relative z-10">
+                            <div class="bg-slate-800 rounded-3xl p-8 text-center text-white relative overflow-hidden shadow-xl">
+                                <div class="absolute -right-10 -top-10 opacity-10">
+                                    <BookOpen class="w-40 h-40" />
+                                </div>
+                                <h4 class="text-blue-400 font-bold uppercase tracking-widest text-xs mb-3 relative z-10">Academic Project</h4>
+                                <p class="text-lg md:text-xl font-bold leading-relaxed mb-4 relative z-10">
+                                    โปรเจกต์นี้เป็นส่วนหนึ่งของการศึกษาในรายวิชา<br>
+                                    <span class="text-blue-300">การดำเนินงานการพัฒนาซอฟต์แวร์ (DevOps)</span><br>
+                                    และ <span class="text-emerald-300">การพัฒนาซอฟต์แวร์ส่วนหลัง (Back-end Development)</span>
+                                </p>
+                                <div class="inline-block bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-6 py-3 mt-2 relative z-10">
+                                    <p class="text-sm text-slate-300 font-medium">
+                                        พัฒนาโดยกลุ่ม <strong class="text-white">เทอมที่ฮาเอาแต้</strong><br>
+                                        สาขาวิศวกรรมซอฟต์แวร์ มหาวิทยาลัยพะเยา (ปีการศึกษา 2568)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -877,7 +1032,8 @@ const resetCalculator = () => {
                     </div>
                 </div>
             </div>
-            </main>
+
+        </main>
     </div>
 </template>
 
