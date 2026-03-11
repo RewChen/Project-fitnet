@@ -6,7 +6,7 @@ import {
     LogOut, CheckCircle2, RotateCcw, X, Lightbulb, ChevronRight, 
     SearchX, Target, Star, BookOpen, Image as ImageIcon, Smartphone, 
     AlertTriangle, Activity, Save, Layers, Accessibility, Armchair, Wind,
-    Heart, Loader2, Zap, Calendar, Trash2, Download
+    Heart, Loader2, Zap, Calendar, Trash2, Download, Lock, Key
 } from 'lucide-vue-next';
 
 // --- 1. State Management ---
@@ -24,6 +24,12 @@ const searchQuery = ref('');
 const selectedMuscle = ref('all');
 const selectedDifficulty = ref('ทั้งหมด');
 const selectedEquipment = ref('ทั้งหมด'); 
+
+// --- [NEW] Admin Auth State ---
+const isAdminLoggedIn = ref(false);
+const loginUsername = ref('');
+const loginPassword = ref('');
+const loginError = ref('');
 
 // --- 2. Workout Plan State ---
 const daysOfWeek = [
@@ -135,6 +141,9 @@ onMounted(() => {
     const savedPlan = localStorage.getItem('musclefit_plan');
     if (savedPlan) weeklyPlan.value = JSON.parse(savedPlan);
 
+    const savedAuth = localStorage.getItem('musclefit_admin');
+    if (savedAuth === 'true') isAdminLoggedIn.value = true;
+
     fetchExercises().then(() => {
         let planChanged = false;
         for (const day in weeklyPlan.value) {
@@ -187,6 +196,59 @@ const getExerciseById = (id) => {
 };
 
 // --- Methods & Logic ---
+
+// [NEW] Login Logic
+const handleLogin = () => {
+    // กำหนด Username และ Password สำหรับแอดมิน (สามารถแก้ไขให้ต่อ API ได้ในอนาคต)
+    if (loginUsername.value === 'admin' && loginPassword.value === '1234') {
+        isAdminLoggedIn.value = true;
+        loginError.value = '';
+        localStorage.setItem('musclefit_admin', 'true');
+        showToast('เข้าสู่ระบบแอดมินสำเร็จ', 'success');
+        currentPage.value = 'create'; // เข้าสู่หน้าเพิ่มท่าฝึก
+    } else {
+        loginError.value = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+    }
+};
+
+// [NEW] Logout Logic
+const handleLogout = () => {
+    isAdminLoggedIn.value = false;
+    loginUsername.value = '';
+    loginPassword.value = '';
+    localStorage.removeItem('musclefit_admin');
+    if(currentPage.value === 'create') currentPage.value = 'guide';
+    showToast('ออกจากระบบเรียบร้อยแล้ว', 'reset');
+};
+
+// [NEW] Delete Exercise
+const deleteExercise = async (id, name, event) => {
+    if(event) event.stopPropagation();
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบท่า "${name}" ?\nข้อมูลนี้จะไม่สามารถกู้คืนได้`)) return;
+
+    try {
+        // [TODO]: ใส่ Code ยิง API ลบจาก Backend ตรงนี้ เช่น
+        // await fetch(`https://faithful-caring-production.up.railway.app/api/exercises/${id}`, { method: 'DELETE' });
+
+        // ลบออกจาก State ส่วนหน้า
+        exercises.value = exercises.value.filter(ex => ex.id !== id);
+        
+        // ลบออกจากท่าโปรดและตาราง
+        favorites.value = favorites.value.filter(favId => favId !== id);
+        localStorage.setItem('musclefit_favs', JSON.stringify(favorites.value));
+
+        for (const day in weeklyPlan.value) {
+            weeklyPlan.value[day] = weeklyPlan.value[day].filter(exId => exId !== id);
+        }
+        localStorage.setItem('musclefit_plan', JSON.stringify(weeklyPlan.value));
+
+        showToast('ลบท่าฝึกเรียบร้อยแล้ว', 'success');
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+    }
+};
+
 const showToast = (message, type = 'success') => {
     toast.value = { show: true, message, type };
     setTimeout(() => toast.value.show = false, 2000);
@@ -349,11 +411,19 @@ const handleReset = () => {
                 <button @click="currentPage = 'bmi'" :class="['w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap', currentPage === 'bmi' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
                     <Calculator class="w-5 h-5 shrink-0" /> <span class="hidden md:inline">คำนวณสุขภาพ</span>
                 </button>
-                 <button @click="currentPage = 'create'" :class="['w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap', currentPage === 'create' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
-                    <PlusCircle class="w-5 h-5 shrink-0" /> <span class="hidden md:inline">เพิ่มท่าฝึกใหม่</span>
+                
+                <button @click="currentPage = isAdminLoggedIn ? 'create' : 'login'" :class="['w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap', (currentPage === 'create' || currentPage === 'login') ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
+                    <PlusCircle v-if="isAdminLoggedIn" class="w-5 h-5 shrink-0" /> 
+                    <Lock v-else class="w-5 h-5 shrink-0" />
+                    <span class="hidden md:inline">{{ isAdminLoggedIn ? 'จัดการท่าฝึก' : 'แอดมิน (Admin)' }}</span>
                 </button>
+
                 <button @click="currentPage = 'about'" :class="['w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap', currentPage === 'about' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
                     <Info class="w-5 h-5 shrink-0" /> <span class="hidden md:inline">เกี่ยวกับเว็บ</span>
+                </button>
+                
+                <button v-if="isAdminLoggedIn" @click="handleLogout" class="w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap text-rose-400 hover:bg-rose-500/10 hover:text-rose-500 mt-auto md:absolute md:bottom-4 md:w-[calc(100%-2rem)]">
+                    <LogOut class="w-5 h-5 shrink-0" /> <span class="hidden md:inline">ออกจากระบบแอดมิน</span>
                 </button>
             </nav>
             
@@ -620,8 +690,10 @@ const handleReset = () => {
                         <h3 class="text-2xl font-bold text-slate-800 mb-3 group-hover:text-blue-600 transition-colors leading-tight">{{ ex.name }}</h3>
                         <p class="text-slate-500 text-sm leading-relaxed line-clamp-2 mb-6 flex-1">{{ ex.description || 'ดูรายละเอียดท่าทางการฝึกเพิ่มเติม' }}</p>
                         
-                        <div class="flex items-center text-blue-600 font-black text-xs uppercase tracking-widest pt-4 border-t border-slate-100 mt-auto">
-                            วิธีการฝึก <ChevronRight class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform shrink-0" />
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
+                            <div class="flex items-center text-blue-600 font-black text-xs uppercase tracking-widest">
+                                วิธีการฝึก <ChevronRight class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform shrink-0" />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -811,8 +883,14 @@ const handleReset = () => {
                                     <p class="text-sm text-slate-500 line-clamp-1 mt-1">{{ ex.description }}</p>
                                 </div>
 
-                                <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors shrink-0 hidden md:flex">
-                                    <ChevronRight class="w-5 h-5 shrink-0" />
+                                <div class="flex items-center gap-2">
+                                    <button v-if="isAdminLoggedIn" @click.stop="(e) => deleteExercise(ex.id, ex.name, e)" class="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-400 hover:text-white hover:bg-rose-500 transition-colors shrink-0 tooltip">
+                                        <Trash2 class="w-5 h-5 shrink-0" />
+                                    </button>
+
+                                    <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors shrink-0 hidden md:flex">
+                                        <ChevronRight class="w-5 h-5 shrink-0" />
+                                    </div>
                                 </div>
                             </div>
 
@@ -827,9 +905,6 @@ const handleReset = () => {
                     </div>
                 </div>
             </div>
-
-           
-
 
             <div v-if="currentPage === 'bmi'" class="p-6 md:p-8 max-w-4xl mx-auto pb-20">
                 <div class="mb-10 text-center pt-4">
@@ -933,10 +1008,48 @@ const handleReset = () => {
                 </div>
             </div>
             
+            <div v-if="currentPage === 'login'" class="p-6 md:p-8 max-w-md mx-auto h-full flex flex-col justify-center pb-20">
+                <div class="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-lg border border-slate-100 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none"></div>
+                    
+                    <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-inner relative z-10">
+                        <Lock class="w-8 h-8" />
+                    </div>
+                    
+                    <h1 class="text-2xl font-black text-slate-800 text-center mb-2 relative z-10">ระบบจัดการสำหรับแอดมิน</h1>
+                    <p class="text-slate-500 text-sm text-center mb-8 relative z-10">กรุณาเข้าสู่ระบบเพื่อเพิ่มหรือลบท่าฝึก</p>
+                    
+                    <form @submit.prevent="handleLogin" class="space-y-5 relative z-10">
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">ชื่อผู้ใช้งาน</label>
+                            <div class="relative">
+                                <User class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <input v-model="loginUsername" type="text" placeholder="Username" class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none font-medium" />
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">รหัสผ่าน</label>
+                            <div class="relative">
+                                <Key class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <input v-model="loginPassword" type="password" placeholder="Password" class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none font-medium" />
+                            </div>
+                        </div>
+                        
+                        <p v-if="loginError" class="text-rose-500 text-sm font-bold text-center mt-2">{{ loginError }}</p>
+                        
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all mt-6 flex items-center justify-center gap-2">
+                            เข้าสู่ระบบ <ChevronRight class="w-4 h-4" />
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <div v-if="currentPage === 'create'" class="p-8 max-w-4xl mx-auto pb-20">
-                <div class="mb-10">
-                    <h1 class="text-3xl font-black text-slate-800">ระบบจัดการท่าออกกำลังกาย</h1>
-                    <p class="text-slate-500 mt-2 font-medium">เพิ่มและแก้ไขฐานข้อมูลท่าออกกำลังกายทั้งหมดในระบบ</p>
+                <div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <h1 class="text-3xl font-black text-slate-800">ระบบจัดการท่าออกกำลังกาย</h1>
+                        <p class="text-slate-500 mt-2 font-medium">เพิ่มและแก้ไขฐานข้อมูลท่าออกกำลังกายทั้งหมดในระบบ (Admin Only)</p>
+                    </div>
                 </div>
 
                 <div class="space-y-8 pb-20">
