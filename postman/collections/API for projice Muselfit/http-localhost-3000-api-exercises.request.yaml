@@ -1,0 +1,34 @@
+$kind: http-request
+name: http://localhost:3000/api/exercises
+url: http://localhost:3000/api/exercises
+method: POST
+headers:
+  Authorization: Bearer admin1234
+body:
+  type: json
+  content: "{\r
+
+    \  \"name_th\": \"026218948989\",\r
+
+    \  \"name_en\": \"TEST\",\r
+
+    \  \"difficulty\": \"เริ่มต้น\",\r
+
+    \  \"muscle_group\": \"ทั่วร่าง\",\r
+
+    \  \"secondary_muscle\": \"หลังแขน\",\r
+
+    \  \"equipment\": \"น้ำหนักตัว\",\r
+
+    \  \"duration\": \"5-10 นาที\",\r
+
+    \  \"description\": \"ท่าฝึกพื้นฐานสำหรับสร้างกล้ามเนื้ออก\",\r
+
+    \  \"instructions\": \"วางมือระดับไหล่ | ดันตัวขึ้น | ลดตัวลง\",\r
+
+    \  \"media_url\": null,\r
+
+    \  \"video_url\": \"https://www.youtube.com/embed/mECzqUIDWfU\"\r
+
+    }"
+order: 4013828496412848

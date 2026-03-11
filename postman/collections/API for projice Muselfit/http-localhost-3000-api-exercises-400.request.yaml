@@ -1,0 +1,7 @@
+$kind: http-request
+name: http://localhost:3000/api/exercises/400
+url: http://localhost:3000/api/exercises/400
+method: DELETE
+headers:
+  authorization: Bearer admin1234
+order: 1773176651530

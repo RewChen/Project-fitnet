@@ -354,7 +354,7 @@ const handleReset = () => {
                 </button>
             </nav>
             
-           
+
         </aside>
 
         <main class="flex-1 overflow-y-auto min-h-0 relative w-full bg-slate-50">
