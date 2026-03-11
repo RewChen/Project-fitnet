@@ -932,6 +932,97 @@ const handleReset = () => {
                     </transition>
                 </div>
             </div>
+            
+            <div v-if="currentPage === 'create'" class="p-8 max-w-4xl mx-auto pb-20">
+                <div class="mb-10">
+                    <h1 class="text-3xl font-black text-slate-800">ระบบจัดการท่าออกกำลังกาย</h1>
+                    <p class="text-slate-500 mt-2 font-medium">เพิ่มและแก้ไขฐานข้อมูลท่าออกกำลังกายทั้งหมดในระบบ</p>
+                </div>
+
+                <div class="space-y-8 pb-20">
+                    <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-5 mb-8">
+                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">1</div>
+                            <h2 class="text-xl font-bold text-slate-800">ข้อมูลพื้นฐานและรูปภาพ</h2>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                            <div class="space-y-2">
+                                <label class="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">ชื่อท่า (ภาษาไทย)</label>
+                                <input v-model="newExercise.nameTh" type="text" placeholder="เช่น วิดพื้น" class="w-full px-6 py-4 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">ชื่อท่า (ENGLISH)</label>
+                                <input v-model="newExercise.nameEn" type="text" placeholder="เช่น Push-up" class="w-full px-6 py-4 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">ระดับความยาก</label>
+                                <select v-model="newExercise.difficulty" class="w-full px-6 py-4 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:border-blue-500 transition-all outline-none appearance-none">
+                                    <option>Beginner (เริ่มต้น)</option>
+                                    <option>Intermediate (ปานกลาง)</option>
+                                    <option>Advanced (ขั้นสูง)</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">หมวดหมู่หลัก</label>
+                                <select v-model="newExercise.category" class="w-full px-6 py-4 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:border-blue-500 transition-all outline-none appearance-none">
+                                    <option>หน้าอก (Chest)</option>
+                                    <option>แผ่นหลัง (Back)</option>
+                                    <option>แขน (Arms)</option>
+                                    <option>ขา (Legs)</option>
+                                    <option>หน้าท้อง (Abs)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2 border-t border-slate-100 pt-8">
+                            <label class="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">URL รูปภาพอ้างอิง (Optional)</label>
+                            <div class="flex items-center relative">
+                                <ImageIcon class="absolute left-4 text-slate-400 w-5 h-5" />
+                                <input v-model="newExercise.imageUrl" type="url" placeholder="https://example.com/image.jpg" class="w-full pl-12 pr-6 py-4 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-5 mb-8">
+                            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center font-bold text-lg">2</div>
+                            <h2 class="text-xl font-bold text-slate-800">กล้ามเนื้อและอุปกรณ์</h2>
+                        </div>
+
+                        <div class="space-y-8">
+                            <div>
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 block">กล้ามเนื้อที่เกี่ยวข้อง</label>
+                                <div class="flex flex-wrap gap-3">
+                                    <label v-for="m in ['อกส่วนบน', 'อกส่วนกลาง', 'หลังแขน', 'หัวไหล่', 'หน้าท้อง']" :key="m" class="flex items-center gap-3 px-5 py-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                                        <input type="checkbox" :value="m" v-model="newExercise.muscles" class="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                                        <span class="text-sm font-bold text-slate-600">{{ m }}</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 block">อุปกรณ์ที่จำเป็น</label>
+                                <div class="flex flex-wrap gap-6">
+                                    <label v-for="e in ['Bodyweight', 'Dumbbell', 'Barbell']" :key="e" class="flex items-center gap-3 cursor-pointer group">
+                                        <input type="radio" :value="e" v-model="newExercise.equipment" class="w-5 h-5 border-slate-300 text-blue-600 focus:ring-blue-500" />
+                                        <span class="text-sm font-bold text-slate-600 group-hover:text-blue-600 transition-colors">{{ e }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 pt-4">
+                        <button @click="handleSave" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-[1.5rem] font-bold text-lg shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-3">
+                            <Save class="w-6 h-6" /> บันทึกและเผยแพร่
+                        </button>
+                        <button @click="handleReset" class="px-10 py-5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-[1.5rem] font-bold transition-all flex items-center justify-center gap-3">
+                            <RotateCcw class="w-5 h-5" /> ล้างข้อมูล
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <div v-if="currentPage === 'about'" class="p-6 md:p-8 max-w-4xl mx-auto pb-20">
                 <div class="mb-10 text-center pt-4">
