@@ -82,7 +82,7 @@ const exercises = ref([]);
 const fetchExercises = async () => {
     isLoading.value = true;
     try {
-        const response = await fetch('http://localhost:3000/api/exercises', { cache: 'no-store' });
+        const response = await fetch('https://faithful-caring-production.up.railway.app/api/exercises', { cache: 'no-store' });
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         
@@ -357,11 +357,7 @@ const handleReset = () => {
                 </button>
             </nav>
             
-            <div class="p-4 border-t border-slate-800 hidden md:block">
-                <button @click="showFeatureNotReady('ออกจากระบบสำเร็จ')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-400 hover:bg-rose-500/10 text-sm font-medium transition-all outline-none">
-                    <LogOut class="w-5 h-5 shrink-0" /> ออกจากระบบ
-                </button>
-            </div>
+            
         </aside>
 
         <main class="flex-1 overflow-y-auto min-h-0 relative w-full bg-slate-50">
