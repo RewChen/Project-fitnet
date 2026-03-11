@@ -349,6 +349,9 @@ const handleReset = () => {
                 <button @click="currentPage = 'bmi'" :class="['w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap', currentPage === 'bmi' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
                     <Calculator class="w-5 h-5 shrink-0" /> <span class="hidden md:inline">คำนวณสุขภาพ</span>
                 </button>
+                 <button @click="currentPage = 'create'" :class="['w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap', currentPage === 'create' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
+                    <PlusCircle class="w-5 h-5 shrink-0" /> <span class="hidden md:inline">เพิ่มท่าฝึกใหม่</span>
+                </button>
                 <button @click="currentPage = 'about'" :class="['w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl transition-all text-sm font-medium outline-none whitespace-nowrap', currentPage === 'about' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
                     <Info class="w-5 h-5 shrink-0" /> <span class="hidden md:inline">เกี่ยวกับเว็บ</span>
                 </button>
